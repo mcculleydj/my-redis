@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"my-redis/pkg/handler"
+	"my-redis/pkg/queue"
 	"net"
 	"os"
 	"os/signal"
@@ -17,9 +18,6 @@ func main() {
 	}
 	defer l.Close()
 
-	// will allow 100 commands to queue up before blocking or replying with busy
-	q := make(chan handler.Command, 100)
-
 	go func() {
 		for {
 			// wait for a connection
@@ -29,7 +27,7 @@ func main() {
 				log.Fatal(err)
 			}
 			defer conn.Close()
-			go handler.HandleConnection(conn, q)
+			go handler.HandleConnection(conn)
 		}
 	}()
 
@@ -38,7 +36,7 @@ func main() {
 	// if it was necessary to execute commands in order of their arrival
 	// then we would need to queue requests and start single threading at the parse step
 	go func() {
-		for c := range q {
+		for c := range queue.Queue {
 			err := handler.HandleCommand(*c.Conn, c.Command, c.Args)
 			if err != nil {
 				log.Fatal(err)
@@ -51,7 +49,7 @@ func main() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	<-c
-	close(q)
+	close(queue.Queue)
 	fmt.Println("\nSIGTERM received...")
 }
 

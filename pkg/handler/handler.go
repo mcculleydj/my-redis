@@ -5,19 +5,13 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"my-redis/pkg/queue"
 	"my-redis/pkg/store"
 	"my-redis/pkg/util"
 	"net"
 	"strconv"
 	"strings"
 )
-
-// Command holds the parsed command and a pointer to the connection to write the response
-type Command struct {
-	Conn    *net.Conn
-	Command string
-	Args    []string
-}
 
 var commandMap map[string]func(net.Conn, []string) error
 
@@ -71,7 +65,7 @@ func parseArray(r *bufio.Reader, size int) {
 // passing data to specific store level functions
 // constructing a reply for the client
 // and closing the connection on completion
-func HandleConnection(conn net.Conn, q chan Command) {
+func HandleConnection(conn net.Conn) {
 	fmt.Println("Handling new connection...")
 	reader := bufio.NewReader(conn)
 
@@ -138,13 +132,7 @@ func HandleConnection(conn net.Conn, q chan Command) {
 			}
 		}
 
-		// TODO: add a select and return a busy error
-		// so that clients can back off and retry
-		q <- Command{
-			Conn:    &conn,
-			Command: command,
-			Args:    args,
-		}
+		queue.Enqueue(conn, command, args)
 		fmt.Printf("Finished parsing a new %s command...\n", strings.ToUpper(command))
 	}
 }

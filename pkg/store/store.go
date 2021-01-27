@@ -23,8 +23,12 @@ func Get(conn net.Conn, args []string) (err error) {
 }
 
 // Set puts a key value in the store
-func Set(conn net.Conn, args []string) error {
+func Set(conn net.Conn, args []string) (err error) {
+	// TODO: implement set ex
+	// based on prompt will only support EX flag
+	// not handling user syntax errors in this clone
+	// will assume "set foo bar" or "set foo bar ex 1"
 	store[args[0]] = args[1]
-	_, err := conn.Write([]byte("+OK\r\n"))
-	return err
+	_, err = conn.Write([]byte("+OK\r\n"))
+	return
 }
