@@ -22,7 +22,6 @@ func main() {
 		for {
 			// wait for a connection
 			conn, err := l.Accept()
-			fmt.Println("new connection")
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -39,7 +38,7 @@ func main() {
 		for c := range queue.Queue {
 			err := handler.HandleCommand(*c.Conn, c.Command, c.Args)
 			if err != nil {
-				log.Fatal(err)
+				log.Println("HandleCommand err:", err.Error())
 			}
 		}
 	}()

@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"log"
 	"my-redis/pkg/queue"
 	"my-redis/pkg/store"
 	"my-redis/pkg/util"
@@ -58,7 +57,7 @@ func parseBulkString(r *bufio.Reader, size int) (string, error) {
 
 // unlike parseBulkString, size will be the length of the array
 func parseArray(r *bufio.Reader, size int) {
-	// TODO: handle arrays
+	// TODO: handle arrays, if required
 }
 
 // HandleConnection is responsible for reading bytes
@@ -69,60 +68,57 @@ func HandleConnection(conn net.Conn) {
 	fmt.Println("Handling new connection...")
 	reader := bufio.NewReader(conn)
 
-	// TODO: better error handling; currently ctrl-c from the redis-cli results in log fatal
-
 	for {
 		s, err := reader.ReadString('\n')
 		if err != nil {
-			log.Fatal(err)
+			conn.Write([]byte("-malformed RESP: missing delimiter*\r\n"))
+			continue
 		}
 		token := strings.Trim(s, "\r\n")
 
 		if token[0] != '*' {
-			_, err := conn.Write([]byte("-unexpected input: RESP string does not begin with *\r\n"))
-			if err != nil {
-				log.Fatal(err)
-			}
+			conn.Write([]byte("-unexpected input: RESP string does not begin with *\r\n"))
+			continue
 		}
 
 		nargs, err := parseLength(token)
 		if err != nil {
-			_, err := conn.Write([]byte("-unexpected input: request length is not a parsable integer\r\n"))
-			if err != nil {
-				log.Fatal(err)
-			}
+			conn.Write([]byte("-unexpected input: request length is not a parsable integer\r\n"))
+			continue
 		}
 
 		var command string
 		var args []string
+		errFlag := false
 
 		for i := 0; i < nargs; i++ {
 			s, err := reader.ReadString('\n')
 			if err != nil {
-				log.Fatal(err)
+				conn.Write([]byte("-malformed RESP: missing delimiter\r\n"))
+				errFlag = true
+				break
 			}
 			token := strings.Trim(s, "\r\n")
 
-			switch token[0] {
-			case '$':
+			if token[0] == '$' {
 				size, err := parseLength(token)
 				if err != nil {
-					log.Fatal(err)
+					conn.Write([]byte("-malformed RESP: unable to parse length\r\n"))
+					errFlag = true
+					break
 				}
 				s, err = parseBulkString(reader, size)
 				if err != nil {
-					log.Fatal(err)
+					conn.Write([]byte("-malformed RESP: unable to parse bulk string\r\n"))
+					errFlag = true
+					break
 				}
-			case '*':
-				// TODO: is this even a valid case for this simple Redis clone
-				// supporting set with expiry and get?
-				length, err := parseLength(token)
+			} else {
 				if err != nil {
-					log.Fatal(err)
+					conn.Write([]byte("-malformed RESP: command array should only contain bulk strings\r\n"))
+					errFlag = true
+					break
 				}
-				parseArray(reader, length)
-			default:
-				conn.Write([]byte("-unable to parse command\r\n"))
 			}
 
 			if i == 0 {
@@ -130,6 +126,10 @@ func HandleConnection(conn net.Conn) {
 			} else {
 				args = append(args, strings.ToLower(s))
 			}
+		}
+
+		if errFlag {
+			continue
 		}
 
 		queue.Enqueue(conn, command, args)
