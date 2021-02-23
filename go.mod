@@ -1,3 +1,3 @@
-module my-redis
+module github.com/mcculleydj/my-redis
 
-go 1.15
+go 1.16

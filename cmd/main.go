@@ -3,11 +3,12 @@ package main
 import (
 	"fmt"
 	"log"
-	"my-redis/pkg/handler"
-	"my-redis/pkg/queue"
 	"net"
 	"os"
 	"os/signal"
+
+	"github.com/mcculleydj/my-redis/pkg/handler"
+	"github.com/mcculleydj/my-redis/pkg/queue"
 )
 
 func main() {

@@ -4,12 +4,13 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"my-redis/pkg/queue"
-	"my-redis/pkg/store"
-	"my-redis/pkg/util"
 	"net"
 	"strconv"
 	"strings"
+
+	"github.com/mcculleydj/my-redis/pkg/queue"
+	"github.com/mcculleydj/my-redis/pkg/store"
+	"github.com/mcculleydj/my-redis/pkg/util"
 )
 
 var commandMap map[string]func(net.Conn, []string) error
